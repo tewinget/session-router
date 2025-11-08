@@ -4,6 +4,7 @@
 #include "handlers/session.hpp"
 #include "handlers/tun.hpp"
 #include "link/endpoint.hpp"
+#include "messages/common.hpp"
 #include "net/policy.hpp"
 #include "path/transit_hop.hpp"
 #include "router/router.hpp"
@@ -674,6 +675,12 @@ namespace srouter::session
             return;
         }
 
+        if (dgram_type == traffic_type::EXIT && !exit_enabled)
+        {
+            log::debug(logcat, "Received exit traffic from {} but not configured for it, dropping.", _remote);
+            return;
+        }
+
         auto pkt = IPPacket{std::move(data)};
 
         // If the packet is ipv4 and we are a relay or inbound client session with a tun interface,
@@ -806,6 +813,34 @@ namespace srouter::session
         invalidate_paths();
         _cc_ok = false;
         _next_cc_update = time_now_ms();
+    }
+
+    std::vector<std::byte> OutboundClientSession::make_exit_request()
+    {
+        // TODO: parameters (e.g. auth), empty for now until exit works again
+        return {};
+    }
+
+    void OutboundClientSession::request_exit() { send_session_control_message("exit_request"sv, make_exit_request()); }
+
+    void InboundClientSession::handle_exit_request()
+    {
+        // TODO: auth, parameters, etc.
+        log::debug(logcat, "Enabling exit functionality for {}", _remote);
+        exit_enabled = true;
+        send_session_control_message("exit_response"sv, as_bspan(messages::STATUS_OK));
+    }
+
+    void OutboundClientSession::handle_exit_response(std::span<const std::byte> resp)
+    {
+        oxenc::bt_dict_consumer btdc{resp};
+        auto status = btdc.require<std::string_view>("!"sv);
+        if (status != "OK"sv)
+        {
+            log::warning(logcat, "Exit functionality via {} rejected: {}", _remote, status);
+            return;
+        }
+        log::debug(logcat, "Exit functionality via {} granted.", _remote);
     }
 
     bool Session::is_expired(sys_ms now) const { return now - last_activity > SESSION_TIMEOUT; }

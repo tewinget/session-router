@@ -15,8 +15,9 @@ namespace srouter::traffic_type
     constexpr uint8_t TCP = 1;
     constexpr uint8_t RAW = 2;
     constexpr uint8_t TUNNELED_QUIC = 3;
+    constexpr uint8_t EXIT = 4;
 
-    inline constexpr bool is_valid(uint8_t t) { return t >= UDP && t <= TUNNELED_QUIC; }
+    inline constexpr bool is_valid(uint8_t t) { return t >= UDP && t <= EXIT; }
 }  // namespace srouter::traffic_type
 
 namespace srouter::handlers

@@ -91,6 +91,10 @@ namespace srouter
             // Base classes should reset this to false as soon as they switch to a new path.
             bool _dead_path{true};
 
+            // If this session is currently being used/usable for public internet exit traffic.
+            // Always false for relay sessions.
+            bool exit_enabled{false};
+
             std::unique_ptr<TCPTunnel> tcp_tunnel{nullptr};
 
             sys_ms last_activity = srouter::time_now_ms();
@@ -389,6 +393,12 @@ namespace srouter
 
             void recv_close() override;
 
+            std::vector<std::byte> make_exit_request();
+
+            void request_exit();
+
+            void handle_exit_response(std::span<const std::byte> resp);
+
             const RouterID& remote_endpoint() const { return _remote.pubkey; }
         };
 
@@ -418,6 +428,8 @@ namespace srouter
                 handlers::SessionEndpoint& parent, std::shared_ptr<path::Path> p, std::vector<std::byte>&& request);
 
             void handle_path_switch(HopID pivot, std::shared_ptr<path::Path> path);
+
+            void handle_exit_request();
 
             std::vector<std::pair<std::string, std::string>> current_path() const override;
 
